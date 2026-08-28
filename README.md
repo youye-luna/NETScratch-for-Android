@@ -32,3 +32,7 @@
 ## 许可证
 
 本项目基于 [Mozilla Public License 2.0 (MPL-2.0)](LICENSE) 授权。
+
+## 求赞助
+给点吧，求求了，有点用不起AI了
+<img width="1037" height="1037" alt="3269a2a7a10c377704db23f933f21ef7" src="https://github.com/user-attachments/assets/2c5fff8f-13f9-46a9-bd44-a8649324d2f3" />
