@@ -199,6 +199,24 @@ fun PingScreen(
             StatText(strings.packetLoss, "${uiState.lostPercent}%")
             StatText(strings.average, if (uiState.received > 0) "${uiState.avgRtt}ms" else "-")
         }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            StatText(
+                strings.minimum,
+                if (uiState.received > 0) "${uiState.minRtt}ms" else "-"
+            )
+            Spacer(Modifier.weight(1f))
+            StatText(
+                strings.maximum,
+                if (uiState.received > 0) "${uiState.maxRtt}ms" else "-"
+            )
+            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.width(72.dp))
+        }
         HorizontalDivider(Modifier.padding(vertical = 4.dp))
 
         // 延迟趋势图（X 轴：秒，Y 轴：ms，实时更新）

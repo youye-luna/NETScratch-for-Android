@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -44,7 +46,11 @@ fun SpeedTestScreen(
     val uiState by viewModel.uiState.collectAsState()
     val strings = AppStrings.current
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
         // 控制卡片
         Card(
             modifier = Modifier
@@ -80,7 +86,8 @@ fun SpeedTestScreen(
                     ) { Text(strings.stop) }
                     OutlinedButton(
                         enabled = !uiState.isTesting &&
-                                (uiState.finalSpeedMbps != null || uiState.errorCode != null || uiState.downloadedBytes > 0),
+                                (uiState.downloadSpeedMbps != null || uiState.uploadSpeedMbps != null ||
+                                        uiState.errorCode != null || uiState.downloadedBytes > 0 || uiState.uploadedBytes > 0),
                         onClick = { viewModel.clear() },
                         shape = RoundedCornerShape(12.dp)
                     ) { Text(strings.clear) }
@@ -102,7 +109,8 @@ fun SpeedTestScreen(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    strings.speedProgressPercent(uiState.progressPercent),
+                    if (uiState.phase == TestPhase.UPLOADING) strings.uploadProgressPercent(uiState.progressPercent)
+                    else strings.speedProgressPercent(uiState.progressPercent),
                     style = MaterialTheme.typography.bodySmall,
                     color = AppColors.current.textGray
                 )
@@ -110,7 +118,7 @@ fun SpeedTestScreen(
         }
 
         // 结果卡片
-        if (uiState.isTesting || uiState.finalSpeedMbps != null) {
+        if (uiState.isTesting || uiState.downloadSpeedMbps != null || uiState.uploadSpeedMbps != null) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -125,27 +133,48 @@ fun SpeedTestScreen(
                         .fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
+                    // 大数字：跟随当前阶段（下载中/上传中显示实时速度，完成后显示下载速度）
+                    val uploading = uiState.phase == TestPhase.UPLOADING && uiState.isTesting
+                    val speed = if (uiState.isTesting) uiState.currentSpeedMbps
+                    else uiState.downloadSpeedMbps ?: uiState.uploadSpeedMbps ?: 0.0
                     Text(
-                        strings.speedResult,
+                        if (uiState.isTesting) {
+                            if (uploading) strings.uploadTesting else strings.speedTesting
+                        } else strings.speedResult,
                         style = MaterialTheme.typography.bodySmall,
                         color = AppColors.current.textGray
                     )
                     Spacer(Modifier.height(4.dp))
-                    val speed = uiState.finalSpeedMbps ?: uiState.currentSpeedMbps
                     Text(
                         "%.2f Mbps".format(speed),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
+                    // 完成后：下载/上传两行结果
+                    if (!uiState.isTesting) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally)
+                        ) {
+                            uiState.downloadSpeedMbps?.let {
+                                StatText(strings.speedResult, "%.2f Mbps".format(it))
+                            }
+                            uiState.uploadSpeedMbps?.let {
+                                StatText(strings.speedResultUpload, "%.2f Mbps".format(it))
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(12.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(48.dp, Alignment.CenterHorizontally)
+                        horizontalArrangement = Arrangement.spacedBy(32.dp, Alignment.CenterHorizontally)
                     ) {
                         StatText(strings.speedTestDownloaded, formatBytes(uiState.downloadedBytes))
+                        StatText(strings.speedTestUploaded, formatBytes(uiState.uploadedBytes))
                         StatText(strings.speedTestDuration, "%.1fs".format(uiState.durationMs / 1000.0))
                     }
-                    if (uiState.finalSpeedMbps != null) {
+                    if (!uiState.isTesting && (uiState.downloadSpeedMbps != null || uiState.uploadSpeedMbps != null)) {
                         Spacer(Modifier.height(4.dp))
                         Text(
                             strings.speedTestComplete,
@@ -157,10 +186,22 @@ fun SpeedTestScreen(
             }
         }
 
+        // 上传失败提示（不影响下载结果展示）
+        if (uiState.uploadError) {
+            Text(
+                text = strings.networkError,
+                color = Color(0xFFEF5350),
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+        }
+
         // 错误提示
         uiState.errorCode?.let { code ->
             Text(
-                text = if (code in SpeedTestViewModel.NETWORK_ERROR_CODES) strings.networkError
+                text = if (code == SpeedTestViewModel.ERROR_NETWORK) strings.networkError
                 else strings.speedTestFailed(code),
                 color = Color(0xFFEF5350),
                 style = MaterialTheme.typography.bodyMedium,
@@ -171,12 +212,15 @@ fun SpeedTestScreen(
         }
 
         // 空状态
-        if (!uiState.isTesting && uiState.finalSpeedMbps == null && uiState.errorCode == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        if (!uiState.isTesting && uiState.downloadSpeedMbps == null && uiState.uploadSpeedMbps == null &&
+            uiState.errorCode == null
+        ) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Text(
                     strings.speedTestReady,
                     color = AppColors.current.textGray,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(vertical = 48.dp)
                 )
             }
         }

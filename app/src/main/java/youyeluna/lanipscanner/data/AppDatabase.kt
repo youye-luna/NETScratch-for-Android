@@ -6,14 +6,16 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import youyeluna.lanipscanner.model.ScanHistory
 import youyeluna.lanipscanner.model.ScanHistoryItem
+import youyeluna.lanipscanner.model.SpeedTestHistory
 
 @Database(
-    entities = [ScanHistory::class, ScanHistoryItem::class],
-    version = 1,
+    entities = [ScanHistory::class, ScanHistoryItem::class, SpeedTestHistory::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun scanHistoryDao(): ScanHistoryDao
+    abstract fun speedTestHistoryDao(): SpeedTestHistoryDao
 
     companion object {
         @Volatile

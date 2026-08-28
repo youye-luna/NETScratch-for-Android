@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import youyeluna.lanipscanner.App
 import youyeluna.lanipscanner.model.ScanHistory
 import youyeluna.lanipscanner.model.ScanHistoryItem
+import youyeluna.lanipscanner.model.SpeedTestHistory
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -13,9 +14,14 @@ import kotlinx.coroutines.launch
 
 class HistoryViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = (application as App).repository
+    private val speedTestRepository = (application as App).speedTestHistoryRepository
     private val historyItemsCache = mutableMapOf<Long, StateFlow<List<ScanHistoryItem>>>()
 
     val allHistory: StateFlow<List<ScanHistory>> = repository.allHistory
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** 测速历史（按时间倒序） */
+    val allSpeedTestHistory: StateFlow<List<SpeedTestHistory>> = speedTestRepository.allHistory
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     fun getHistoryItems(historyId: Long): StateFlow<List<ScanHistoryItem>> {
@@ -38,6 +44,20 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
     fun deleteAllHistory() {
         viewModelScope.launch {
             repository.deleteAllHistory()
+        }
+    }
+
+    /** 删除单条测速历史 */
+    fun deleteSpeedTestHistory(id: Long) {
+        viewModelScope.launch {
+            speedTestRepository.deleteById(id)
+        }
+    }
+
+    /** 清空测速历史 */
+    fun deleteAllSpeedTestHistory() {
+        viewModelScope.launch {
+            speedTestRepository.deleteAll()
         }
     }
 }

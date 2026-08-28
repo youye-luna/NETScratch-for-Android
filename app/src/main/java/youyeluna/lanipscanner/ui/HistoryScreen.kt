@@ -18,11 +18,13 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import youyeluna.lanipscanner.model.DhcpServerInfo
 import youyeluna.lanipscanner.model.ScanHistory
+import youyeluna.lanipscanner.model.SpeedTestHistory
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -48,60 +51,153 @@ fun HistoryScreen(
     onHistoryClick: (Long) -> Unit
 ) {
     val historyList by historyViewModel.allHistory.collectAsState()
+    val speedHistory by historyViewModel.allSpeedTestHistory.collectAsState()
     val strings = AppStrings.current
     var showDeleteAllDialog by remember { mutableStateOf(false) }
+    var showClearSpeedDialog by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf(0) } // 0=扫描历史 1=测速历史
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (historyList.isEmpty()) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = strings.noHistory,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = strings.noHistoryHint,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        } else {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.End
+    Column(modifier = Modifier.fillMaxSize()) {
+        // 切换按钮
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (selectedTab == 0) {
+                Button(
+                    onClick = { selectedTab = 0 },
+                    modifier = Modifier.weight(1f)
                 ) {
-                    TextButton(onClick = { showDeleteAllDialog = true }) {
-                        Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 4.dp)
+                    Text(strings.scanHistory)
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { selectedTab = 0 },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(strings.scanHistory)
+                }
+            }
+            if (selectedTab == 1) {
+                Button(
+                    onClick = { selectedTab = 1 },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(strings.speedTestHistory)
+                }
+            } else {
+                OutlinedButton(
+                    onClick = { selectedTab = 1 },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(strings.speedTestHistory)
+                }
+            }
+        }
+
+        when (selectedTab) {
+            0 -> {
+                // 扫描历史
+                if (historyList.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = strings.noHistory,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        Text(strings.deleteAllHistory)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = strings.noHistoryHint,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showDeleteAllDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(strings.deleteAllHistory)
+                        }
+                    }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = 16.dp
+                        )
+                    ) {
+                        items(historyList) { history ->
+                            HistoryCard(
+                                history = history,
+                                onClick = { onHistoryClick(history.id) },
+                                onDelete = { historyViewModel.deleteHistory(history.id) }
+                            )
+                        }
                     }
                 }
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        bottom = 16.dp
-                    )
-                ) {
-                    items(historyList) { history ->
-                        HistoryCard(
-                            history = history,
-                            onClick = { onHistoryClick(history.id) },
-                            onDelete = { historyViewModel.deleteHistory(history.id) }
+            }
+            else -> {
+                // 测速历史
+                if (speedHistory.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = strings.noSpeedTestHistory,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(onClick = { showClearSpeedDialog = true }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 4.dp)
+                            )
+                            Text(strings.clear)
+                        }
+                    }
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            bottom = 16.dp
+                        )
+                    ) {
+                        items(speedHistory) { record ->
+                            SpeedTestHistoryCard(
+                                record = record,
+                                onDelete = { historyViewModel.deleteSpeedTestHistory(record.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -123,6 +219,110 @@ fun HistoryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteAllDialog = false }) {
+                    Text(strings.cancel)
+                }
+            }
+        )
+    }
+
+    if (showClearSpeedDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearSpeedDialog = false },
+            title = { Text(strings.deleteConfirm) },
+            text = { Text(strings.speedTestHistory) },
+            confirmButton = {
+                TextButton(onClick = {
+                    historyViewModel.deleteAllSpeedTestHistory()
+                    showClearSpeedDialog = false
+                }) {
+                    Text(strings.delete)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearSpeedDialog = false }) {
+                    Text(strings.cancel)
+                }
+            }
+        )
+    }
+}
+
+/** 测速历史单条记录卡片 */
+@Composable
+private fun SpeedTestHistoryCard(
+    record: SpeedTestHistory,
+    onDelete: () -> Unit
+) {
+    val strings = AppStrings.current
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()) }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "↓ %.2f".format(record.downloadSpeedMbps),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (record.uploadSucceeded) "↑ %.2f".format(record.uploadSpeedMbps) else "↑ --",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (record.uploadSucceeded) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Mbps",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${dateFormat.format(Date(record.testTime))} · %.1fs".format(record.durationMs / 1000.0),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            IconButton(onClick = { showDeleteDialog = true }) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = strings.deleteHistory,
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text(strings.deleteConfirm) },
+            text = { Text(strings.speedTestHistory) },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteDialog = false
+                }) {
+                    Text(strings.delete)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
                     Text(strings.cancel)
                 }
             }

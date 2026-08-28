@@ -249,9 +249,110 @@ fun IpGridView(
     }
 }
 
+/** 分布图视图（静态版）：不依赖 Lazy 网格，供整页滚动场景使用 */
+@Composable
+fun IpGridStatic(
+    results: List<DhcpServerInfo>,
+    onDeviceSelected: (DhcpServerInfo) -> Unit
+) {
+    val strings = AppStrings.current
+    val subnets = results.groupBy { it.subnet }.keys.toList()
+    var selectedSubnet by remember { mutableStateOf(subnets.first()) }
+    val currentSubnet = if (subnets.contains(selectedSubnet)) selectedSubnet else subnets.first()
+    var emptyIp by remember { mutableStateOf<String?>(null) }
+
+    val deviceMap = remember(currentSubnet, results) {
+        buildMap {
+            results.filter { it.subnet == currentSubnet }.forEach { device ->
+                val last = device.ip.substringAfterLast('.').toIntOrNull() ?: return@forEach
+                if (last in 1..255) put(last - 1, device)
+            }
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (subnets.size > 1) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(subnets) { subnet ->
+                    FilterChip(
+                        selected = subnet == currentSubnet,
+                        onClick = { selectedSubnet = subnet },
+                        label = { Text("${strings.subnet} $subnet") }
+                    )
+                }
+            }
+        } else {
+            Text(
+                "${strings.subnet} $currentSubnet",
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = ColorLinkBlue,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            )
+        }
+
+        // 静态网格：255 个格子按行渲染
+        val columns = (LocalConfiguration.current.screenWidthDp / 48).coerceIn(8, 20)
+        (0 until 255).chunked(columns).forEach { rowIndices ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 11.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                rowIndices.forEach { index ->
+                    IpGridCell(
+                        index = index,
+                        info = deviceMap[index],
+                        onClick = {
+                            deviceMap[index]?.let { onDeviceSelected(it) }
+                                ?: run { emptyIp = "${index + 1}" }
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                // 最后一行补足空白
+                repeat(columns - rowIndices.size) {
+                    Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            LegendItem(AppColors.current.gridEmpty, strings.unscanned)
+            LegendItem(ColorOnline, strings.noDevice)
+            LegendItem(ColorOnlineBlue, strings.gridOnline)
+            LegendItem(ColorDhcp, strings.dhcp)
+        }
+    }
+
+    emptyIp?.let { ip ->
+        AlertDialog(
+            onDismissRequest = { emptyIp = null },
+            title = { Text("$currentSubnet.$ip", fontWeight = FontWeight.Bold) },
+            text = { Text(strings.ipNoResponse) },
+            confirmButton = { TextButton(onClick = { emptyIp = null }) { Text(strings.close) } }
+        )
+    }
+}
+
 /** 单个网格单元 */
 @Composable
-private fun IpGridCell(index: Int, info: DhcpServerInfo?, onClick: () -> Unit) {
+private fun IpGridCell(
+    index: Int,
+    info: DhcpServerInfo?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val (bgColor, textColor) = when {
         info?.isDhcpServer == true -> ColorDhcp to Color.White
         info?.isActive == true -> ColorOnlineBlue to Color.White
@@ -262,7 +363,7 @@ private fun IpGridCell(index: Int, info: DhcpServerInfo?, onClick: () -> Unit) {
     val cellSize = LocalConfiguration.current.screenWidthDp / columns
     val fontSize = (cellSize * 0.35f).coerceIn(8f, 14f).sp
     Box(
-        modifier = Modifier
+        modifier = modifier
             .aspectRatio(1f)
             .padding(1.dp)
             .clip(RoundedCornerShape(3.dp))
@@ -294,7 +395,7 @@ private fun LegendItem(color: Color, label: String) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun ListContent(
+internal fun ListContent(
     uiState: ScanUiState,
     detailDevice: DhcpServerInfo?,
     isPriorityMode: Boolean,
@@ -352,5 +453,63 @@ private fun ListContent(
             }
             item { Spacer(Modifier.height(16.dp)) }
         }
+    }
+}
+
+/** 列表视图（静态版）：不依赖 Lazy 列表，供整页滚动场景使用 */
+@Composable
+internal fun ListContentStatic(
+    uiState: ScanUiState,
+    isPriorityMode: Boolean,
+    onDeviceSelected: (DhcpServerInfo) -> Unit
+) {
+    val groups = uiState.results.groupBy { it.subnet }
+    val subnets = groups.keys.toList()
+    val strings = AppStrings.current
+    var selectedSubnet by remember { mutableStateOf(subnets.firstOrNull()) }
+    val currentSubnet = if (subnets.contains(selectedSubnet)) selectedSubnet else subnets.firstOrNull()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (subnets.size > 1) {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(subnets) { subnet ->
+                    val deviceCount = groups[subnet]?.size ?: 0
+                    FilterChip(
+                        selected = subnet == currentSubnet,
+                        onClick = { selectedSubnet = subnet },
+                        label = { Text("${strings.subnet} $subnet ($deviceCount)") }
+                    )
+                }
+            }
+        }
+
+        val filteredGroups = if (currentSubnet != null) {
+            groups.filter { it.key == currentSubnet }
+        } else {
+            groups
+        }
+
+        filteredGroups.forEach { (subnet, devices) ->
+            SubnetHeader(
+                subnet = subnet,
+                online = devices.count { it.isActive },
+                dhcp = devices.count { it.isDhcpServer }
+            )
+            val sortedDevices = if (isPriorityMode) {
+                devices.sortedWith(compareByDescending<DhcpServerInfo> { it.isDhcpServer }
+                    .thenByDescending { it.isActive }
+                    .thenBy { it.ip })
+            } else {
+                devices.sortedBy { it.ip }
+            }
+            sortedDevices.forEach { device ->
+                ResultRow(device) { onDeviceSelected(device) }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
     }
 }

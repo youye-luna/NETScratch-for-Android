@@ -7,6 +7,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import youyeluna.lanipscanner.data.AppDatabase
 import youyeluna.lanipscanner.data.ScanHistoryRepository
+import youyeluna.lanipscanner.data.SpeedTestHistoryRepository
 import youyeluna.lanipscanner.ui.HistorySettingsManager
 
 class App : Application() {
@@ -14,6 +15,7 @@ class App : Application() {
 
     val database by lazy { AppDatabase.getDatabase(this) }
     val repository by lazy { ScanHistoryRepository(database.scanHistoryDao()) }
+    val speedTestHistoryRepository by lazy { SpeedTestHistoryRepository(database.speedTestHistoryDao()) }
 
     override fun onCreate() {
         super.onCreate()

@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.DateRange
@@ -32,6 +31,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.rememberScrollState
@@ -52,6 +53,8 @@ import androidx.compose.ui.graphics.vector.addPathNodes
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import android.net.Uri
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -79,7 +82,6 @@ private val SpeedTestIcon: ImageVector by lazy {
 /** 应用页面 */
 enum class AppScreen(val route: String, val icon: ImageVector) {
     Home("home", Icons.Filled.Home),
-    Results("results", Icons.AutoMirrored.Filled.List),
     Ping("ping", Icons.Filled.PlayArrow),
     SpeedTest("speed_test", SpeedTestIcon),
     History("history", Icons.Filled.DateRange),
@@ -113,7 +115,6 @@ fun AppNavHost(viewModel: ScanViewModel) {
     val topBarTitle: String = when {
         currentRoute == "history_detail/{historyId}" -> strings.historyDetail
         currentScreen == AppScreen.Home -> strings.navHome
-        currentScreen == AppScreen.Results -> strings.navResults
         currentScreen == AppScreen.History -> strings.navHistory
         currentScreen == AppScreen.Ping -> strings.navPing
         currentScreen == AppScreen.SpeedTest -> strings.speedTestTitle
@@ -135,7 +136,6 @@ fun AppNavHost(viewModel: ScanViewModel) {
                 AppScreen.entries.forEach { screen ->
                     val label = when (screen) {
                         AppScreen.Home -> strings.navHome
-                        AppScreen.Results -> strings.navResults
                         AppScreen.History -> strings.navHistory
                         AppScreen.Ping -> strings.navPing
                         AppScreen.SpeedTest -> strings.navSpeedTest
@@ -167,19 +167,8 @@ fun AppNavHost(viewModel: ScanViewModel) {
             composable(AppScreen.Home.route) {
                 HomeScreen(
                     viewModel = viewModel,
-                    onOpenResults = {
-                        navController.navigate(AppScreen.Results.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
+                    onNavigateToPing = navigateToPing
                 )
-            }
-            composable(AppScreen.Results.route) {
-                ResultsScreen(viewModel, navigateToPing)
             }
             composable(AppScreen.History.route) {
                 HistoryScreen(
@@ -557,8 +546,34 @@ private fun AboutDialog(onDismiss: () -> Unit) {
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
                 Spacer(Modifier.height(16.dp))
+                
+                val githubUrl = "https://github.com/yourusername/lanipscanner"
+                val interactionSource = remember { MutableInteractionSource() }
+                
                 Text(
-                    "${strings.copyright} 2026 Wu Kaixuan",
+                    strings.githubLink,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    githubUrl,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null
+                        ) {
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(githubUrl))
+                            context.startActivity(intent)
+                        }
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    strings.copyright + " 2026 Wu Kaixuan",
                     style = MaterialTheme.typography.bodySmall,
                     color = AppColors.current.textGray
                 )

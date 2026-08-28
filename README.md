@@ -1,5 +1,8 @@
 # LanIPScanner for Android
 一个普通的安卓端局域网IP扫描工具
+
+> <font color="red">**⚠ 重要通知：由于作者原因，把编译APK的签名文件密码泄露出来了，所以撤销了所有提交**</font>
+
 ## 软件由来
 作者闲着没事干用AI做出来的东西<br>
 （作者PS：其实网上有很多比我这个做的更好的工具了，我做这个纯属白搭）
@@ -25,3 +28,7 @@
 有建议或bug：[提issues](https://github.com/youye-luna/LanIPScanner-for-Android/issues)<br>
 不喜勿喷<br>
 本人是真的不太会编程
+
+## 许可证
+
+本项目基于 [Mozilla Public License 2.0 (MPL-2.0)](LICENSE) 授权。
